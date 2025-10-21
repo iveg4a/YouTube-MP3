@@ -9,7 +9,52 @@
     
     <h1>YOUTUBE MP3</h1>
 
-    <p><strong>Introduzca la URL del video cuyo audio quiera descargar:</strong></p>
+    <form action="/download" method="post">
+        <label for="url">Introduce URL del video:</label><br>
+        <input type="text" id="url" name="url" required><br><br>
+
+        <label for="quality">Selecciona la calidad del audio:</label><br>
+
+        <select id="quality" name="quality" onchange="toggleCustomQuality()">
+
+            <option value="best">Calidad correspondiente al audio del video</option>
+            <option value="320">320 kbps</option>
+            <option value="256">256 kbps</option>
+            <option value="224">224 kbps</option>
+            <option value="192">192 kbps</option>
+            <option value="160">160 kbps</option>
+            <option value="144">144 kbps</option>
+            <option value="128">128 kbps</option>
+            <option value="112">112 kbps</option>
+            <option value="custom">Introducir calidad específica</option>
+
+        </select><br><br>
+
+
+        <div id="customQualityDiv" style="display: none;">
+            <label for="customQuality">Escribe kbps (1-320):</label><br>
+            <input type="number" id="customQuality" name="customQuality" min="1" max="320"><br><br>
+        </div>
+
+
+        <script>
+
+        function toggleCustomQuality() {
+            const qualitySelect = document.getElementById('quality');
+            const customDiv = document.getElementById('customQualityDiv');
+            if (qualitySelect.value === 'custom') {
+                customDiv.style.display = 'block';
+            } else {
+                customDiv.style.display = 'none';
+            }
+        }
+
+        </script>
+
+
+    <button type="submit">Descargar MP3</button>
+
+    </form>
 
 </body>
 </html>
