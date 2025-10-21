@@ -3,6 +3,7 @@ import yt_dlp
 import os
 import tempfile
 from urllib.parse import urlparse, urlunparse
+import shutil
 
 app = Flask(__name__)
 
@@ -16,7 +17,7 @@ def download():
     quality = request.form.get('quality', 'default')
     custom_bitrate = request.form.get('custom_bitrate', '')
 
-    # Limpiar URL: quitar parámetros extra
+    # Limpiar URL (quitar parámetros extra)
     parsed_url = urlparse(url)
     clean_url = urlunparse(parsed_url._replace(query=''))
 
@@ -29,12 +30,22 @@ def download():
         except:
             return "Valor de calidad inválido."
     else:
-        kbps = custom_bitrate if custom_bitrate else '192'
+        kbps = quality if quality != 'highest' else '0'  # 0 = mejor calidad
 
     # Carpeta temporal
     temp_dir = tempfile.mkdtemp()
     output_template = os.path.join(temp_dir, '%(title)s.%(ext)s')
 
+    # Revisar si se subió cookies.txt
+    cookies_file = None
+    if 'cookies' in request.files:
+        file = request.files['cookies']
+        if file.filename != '':
+            cookies_path = os.path.join(temp_dir, 'cookies.txt')
+            file.save(cookies_path)
+            cookies_file = cookies_path
+
+    # Opciones de yt-dlp
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': output_template,
@@ -43,9 +54,12 @@ def download():
             'preferredcodec': 'mp3',
             'preferredquality': kbps
         }],
-        'noplaylist': True,  # evitar playlists
-        'quiet': True,       # menos logs
+        'noplaylist': True,
+        'quiet': True,
     }
+
+    if cookies_file:
+        ydl_opts['cookiefile'] = cookies_file
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -63,7 +77,6 @@ def download():
         @response.call_on_close
         def cleanup():
             try:
-                import shutil
                 shutil.rmtree(temp_dir)
             except:
                 pass
@@ -76,6 +89,5 @@ def download():
         return f"Ocurrió un error inesperado: {e}"
 
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
