@@ -1,66 +1,79 @@
 from flask import Flask, render_template, request, send_file
+import yt_dlp
 import os
-import subprocess
 import tempfile
-import glob
-import shutil
+from urllib.parse import urlparse, urlunparse
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route('/')
 def index():
-    return render_template("index.html")
+    return render_template('index.html')
 
-@app.route("/download", methods=["POST"])
+@app.route('/download', methods=['POST'])
 def download():
-    url = request.form.get("url")
-    quality = request.form.get("quality")
-    custom_quality = request.form.get("customQuality")
+    url = request.form['url']
+    quality = request.form.get('quality', 'default')
+    custom_bitrate = request.form.get('custom_bitrate', '')
 
-    # Validar calidad personalizada
-    if quality == "custom":
+    # Limpiar URL: quitar parámetros extra
+    parsed_url = urlparse(url)
+    clean_url = urlunparse(parsed_url._replace(query=''))
+
+    # Validar bitrate personalizado
+    if quality == 'custom':
         try:
-            kbps = int(custom_quality)
+            kbps = int(custom_bitrate)
             if not (1 <= kbps <= 320):
-                return "Por favor, introduce un valor entre 1 y 320 kbps."
+                return "Introduce un valor de 1 a 320 kbps."
         except:
             return "Valor de calidad inválido."
     else:
-        kbps = quality if quality != "best" else "0"  # 0 = mejor calidad
+        kbps = custom_bitrate if custom_bitrate else '192'
 
-    # Crear directorio temporal único
+    # Carpeta temporal
     temp_dir = tempfile.mkdtemp()
-    output_template = os.path.join(temp_dir, "%(title)s.%(ext)s")
+    output_template = os.path.join(temp_dir, '%(title)s.%(ext)s')
 
-    # Comando yt-dlp
-    if kbps == "0":
-        cmd = ["yt-dlp", "-f", "bestaudio", "-x", "--audio-format", "mp3", "-o", output_template, url]
-    else:
-        cmd = ["yt-dlp", "-f", "bestaudio", "-x", "--audio-format", "mp3", "--audio-quality", str(kbps), "-o", output_template, url]
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': output_template,
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': kbps
+        }],
+        'noplaylist': True,  # evitar playlists
+        'quiet': True,       # menos logs
+    }
 
     try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError:
-        shutil.rmtree(temp_dir)  # limpiar temporal
-        return "No se pudo descargar el video. Verifica la URL."
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(clean_url, download=True)
+            title = info.get('title', 'audio')
+            mp3_file = os.path.join(temp_dir, f"{title}.mp3")
 
-    # Buscar el archivo MP3 generado
-    mp3_files = glob.glob(os.path.join(temp_dir, "*.mp3"))
-    if not mp3_files:
-        shutil.rmtree(temp_dir)
-        return "No se pudo generar el MP3."
+        if not os.path.exists(mp3_file):
+            return "No se pudo generar el MP3."
 
-    mp3_path = mp3_files[0]
+        # Enviar archivo al navegador
+        response = send_file(mp3_file, as_attachment=True, download_name=f"{title}.mp3")
 
-    # Enviar el archivo al navegador
-    response = send_file(mp3_path, as_attachment=True)
+        # Limpiar temporal después de enviar
+        @response.call_on_close
+        def cleanup():
+            try:
+                import shutil
+                shutil.rmtree(temp_dir)
+            except:
+                pass
 
-    # Limpiar el directorio temporal después de enviar
-    @response.call_on_close
-    def cleanup():
-        shutil.rmtree(temp_dir)
+        return response
 
-    return response
+    except yt_dlp.utils.DownloadError as de:
+        return f"No se pudo descargar el video: {de}"
+    except Exception as e:
+        return f"Ocurrió un error inesperado: {e}"
 
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+if __name__ == '__main__':
+    app.run(debug=True)
