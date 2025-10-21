@@ -1,23 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Descargar MP3 de YouTube</title>
 </head>
 <body>
-    
-    <h1>YOUTUBE MP3</h1>
+    <h1>Descargar audio de YouTube</h1>
 
-    <form action="/download" method="post">
-        <label for="url">Introduce URL del video:</label><br>
-        <input type="text" id="url" name="url" required><br><br>
+    <form method="POST" action="/download" enctype="multipart/form-data">
+        <label>URL del video:</label><br>
+        <input type="text" name="url" required><br><br>
 
-        <label for="quality">Selecciona la calidad del audio:</label><br>
-
-        <select id="quality" name="quality" onchange="toggleCustomQuality()">
-
-            <option value="best">Calidad correspondiente al audio del video</option>
+        <label>Calidad:</label><br>
+        <select name="quality" id="quality-select">
+            <option value="highest">Calidad más alta</option>
             <option value="320">320 kbps</option>
             <option value="256">256 kbps</option>
             <option value="224">224 kbps</option>
@@ -26,35 +23,31 @@
             <option value="144">144 kbps</option>
             <option value="128">128 kbps</option>
             <option value="112">112 kbps</option>
-            <option value="custom">Introducir calidad específica</option>
-
+            <option value="custom">Elegir calidad específica</option>
         </select><br><br>
 
+        <div id="custom-bitrate-div" style="display:none;">
+            <label>Introduce bitrate (1-320 kbps):</label><br>
+            <input type="number" name="custom_bitrate" min="1" max="320">
+        </div><br>
 
-        <div id="customQualityDiv" style="display: none;">
-            <label for="customQuality">Escribe kbps (1-320):</label><br>
-            <input type="number" id="customQuality" name="customQuality" min="1" max="320"><br><br>
-        </div>
+        <label>Subir cookies.txt (opcional para videos protegidos):</label><br>
+        <input type="file" name="cookies"><br><br>
 
+        <button type="submit">Descargar MP3</button>
+    </form>
 
-        <script>
+    <script>
+        const qualitySelect = document.getElementById('quality-select');
+        const customDiv = document.getElementById('custom-bitrate-div');
 
-        function toggleCustomQuality() {
-            const qualitySelect = document.getElementById('quality');
-            const customDiv = document.getElementById('customQualityDiv');
+        qualitySelect.addEventListener('change', () => {
             if (qualitySelect.value === 'custom') {
                 customDiv.style.display = 'block';
             } else {
                 customDiv.style.display = 'none';
             }
-        }
-
-        </script>
-
-
-    <button type="submit">Descargar MP3</button>
-
-    </form>
-
+        });
+    </script>
 </body>
 </html>
